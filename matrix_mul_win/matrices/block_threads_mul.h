@@ -9,6 +9,33 @@
 
 namespace blocks {
 
+    class MulSeq {
+        int i = 0, j = 0, k = 0, m = 0;
+    public:
+        MulSeq(int m) : m(m) {}
+
+        void Set(std::vector<int>& v){
+            v = {i, j, k};
+            Update();
+        }
+
+        bool HasElem(){
+            return i != m;
+        }
+
+        void Update(){
+            k += 1;
+            if (k == m){
+                k = 0;
+                j += 1;
+                if (j == m){
+                    j = 0;
+                    i += 1;
+                }
+            }
+        }
+    };
+
     HANDLE mtxQueue;
     std::vector<std::vector<HANDLE>> mtxBlock;
 
@@ -16,7 +43,7 @@ namespace blocks {
     struct Params {
         const std::vector<std::vector<T>> *m1, *m2;
         std::vector<std::vector<T>> *ans;
-        std::queue<std::vector<int>> *mulSeq;
+        MulSeq *mulSeq;
         const std::vector<int> *bounds1, *bounds2;
     };
 
@@ -29,9 +56,9 @@ namespace blocks {
         auto &mulSeq = *par->mulSeq;
 
         WaitForSingleObject(mtxQueue, INFINITE);
-        while (!mulSeq.empty()) {
-            auto cur = mulSeq.front();
-            mulSeq.pop();
+        while (mulSeq.HasElem()) {
+            std::vector<int> cur;
+            mulSeq.Set(cur);
             ReleaseMutex(mtxQueue);
 
             auto res = SimpleMul(
@@ -65,18 +92,6 @@ namespace blocks {
         }
 
         return bounds;
-    }
-
-    std::queue<std::vector<int>> MulSeq(int k) {
-        std::queue<std::vector<int>> mulSeq;
-        for (int i = 0; i < k; ++i) {
-            for (int j = 0; j < k; ++j) {
-                for (int l = 0; l < k; ++l) {
-                    mulSeq.push({i, j, l});
-                }
-            }
-        }
-        return mulSeq;
     }
 
     template<typename T>
