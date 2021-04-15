@@ -44,7 +44,7 @@ namespace blocks {
         const std::vector<std::vector<T>> *m1, *m2;
         std::vector<std::vector<T>> *ans;
         MulSeq *mulSeq;
-        const std::vector<int> *bounds1, *bounds2;
+        const std::vector<int> *bounds1, *bounds2, *bounds3;
     };
 
     template <typename T>
@@ -52,7 +52,7 @@ namespace blocks {
         auto par = (Params<T> *) params;
         auto &m1 = *par->m1, &m2 = *par->m2;
         auto &ans = *par->ans;
-        auto &bounds1 = *par->bounds1, &bounds2 = *par->bounds2;
+        auto &bounds1 = *par->bounds1, &bounds2 = *par->bounds2, &bounds3 = *par->bounds3;
         auto &mulSeq = *par->mulSeq;
 
         WaitForSingleObject(mtxQueue, INFINITE);
@@ -63,14 +63,14 @@ namespace blocks {
 
             auto res = SimpleMul(
                     SubMatrix(m1, bounds1[cur[0]], bounds1[cur[0] + 1], bounds2[cur[1]], bounds2[cur[1] + 1]),
-                    SubMatrix(m2, bounds1[cur[1]], bounds1[cur[1] + 1], bounds2[cur[2]], bounds2[cur[2] + 1]));
+                    SubMatrix(m2, bounds2[cur[1]], bounds2[cur[1] + 1], bounds3[cur[2]], bounds3[cur[2] + 1]));
 
             WaitForSingleObject(mtxBlock[cur[0]][cur[2]], INFINITE);
 
             Assign(ans,
-                   bounds1[cur[0]], bounds1[cur[0] + 1], bounds2[cur[2]], bounds2[cur[2] + 1],
+                   bounds1[cur[0]], bounds1[cur[0] + 1], bounds3[cur[2]], bounds3[cur[2] + 1],
                    Sum(res,
-                       SubMatrix(ans, bounds1[cur[0]], bounds1[cur[0] + 1], bounds2[cur[2]], bounds2[cur[2] + 1])));
+                       SubMatrix(ans, bounds1[cur[0]], bounds1[cur[0] + 1], bounds3[cur[2]], bounds3[cur[2] + 1])));
 
             ReleaseMutex(mtxBlock[cur[0]][cur[2]]);
             WaitForSingleObject(mtxQueue, INFINITE);
@@ -101,10 +101,12 @@ namespace blocks {
         mtxBlock.resize(k, std::vector<HANDLE>(k, CreateMutex(nullptr, false, nullptr)));
 
         auto mulSeq = MulSeq(k);
-        auto bounds1 = Bounds(k, m1.size()), bounds2 = Bounds(k, m1[0].size());
+        auto bounds1 = Bounds(k, m1.size()),
+             bounds2 = Bounds(k, m1[0].size()),
+             bounds3 = Bounds(k, m2[0].size());
 
         std::vector<std::vector<T>> ans(m1.size(), std::vector<T>(m2[0].size()));
-        auto params = new Params<T>{&m1, &m2, &ans, &mulSeq, &bounds1, &bounds2};
+        auto params = new Params<T>{&m1, &m2, &ans, &mulSeq, &bounds1, &bounds2, &bounds3};
 
         auto threads = new HANDLE[k];
         for (int i = 0; i < k; ++i) {

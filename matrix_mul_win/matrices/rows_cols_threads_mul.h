@@ -40,7 +40,7 @@ namespace rows_cols {
         const std::vector<std::vector<T>> *m1, *m2;
         std::vector<std::vector<T>> *ans;
         MulSeq *mulSeq;
-        const std::vector<int> *bounds;
+        const std::vector<int> *bounds1, *bounds2;
     };
 
     template <typename T>
@@ -48,7 +48,7 @@ namespace rows_cols {
         auto par = (Params<T>*) params;
         auto &m1 = *par->m1, &m2 = *par->m2;
         auto &ans = *par->ans;
-        auto &bounds = *par->bounds;
+        auto &bounds1 = *par->bounds1, &bounds2 = *par->bounds2;
         auto &mulSeq = *par->mulSeq;
 
         WaitForSingleObject(mtxQueue, INFINITE);
@@ -57,10 +57,10 @@ namespace rows_cols {
             mulSeq.Set(cur);
             ReleaseMutex(mtxQueue);
 
-            auto res = SimpleMul(SubMatrix(m1, bounds[cur[0]], bounds[cur[0] + 1], 0, m1[0].size()),
-                                 SubMatrix(m2, 0, m2.size(), bounds[cur[1]], bounds[cur[1] + 1]));
+            auto res = SimpleMul(SubMatrix(m1, bounds1[cur[0]], bounds1[cur[0] + 1], 0, m1[0].size()),
+                                 SubMatrix(m2, 0, m2.size(), bounds2[cur[1]], bounds2[cur[1] + 1]));
 
-            Assign(ans, bounds[cur[0]], bounds[cur[0] + 1], bounds[cur[1]], bounds[cur[1] + 1], res);
+            Assign(ans, bounds1[cur[0]], bounds1[cur[0] + 1], bounds2[cur[1]], bounds2[cur[1] + 1], res);
 
             WaitForSingleObject(mtxQueue, INFINITE);
         }
@@ -89,11 +89,12 @@ namespace rows_cols {
         mtxQueue = CreateMutex(nullptr, false, nullptr);
         auto mulSeq = MulSeq(k);
 
-        auto bounds = Bounds(k, m1.size());
+        auto bounds1 = Bounds(k, m1.size()),
+             bounds2 = Bounds(k, m2[0].size());
 
         auto threads = new HANDLE[k];
         std::vector<std::vector<T>> ans(m1.size(), std::vector<T>(m2[0].size()));
-        auto params = new Params<T>{&m1, &m2, &ans, &mulSeq, &bounds};
+        auto params = new Params<T>{&m1, &m2, &ans, &mulSeq, &bounds1, &bounds2};
 
         for (int i = 0; i < k; ++i) {
             threads[i] = CreateThread(nullptr, 0, ThreadProc<T>, params, 0, nullptr);
