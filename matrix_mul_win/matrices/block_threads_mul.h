@@ -12,14 +12,14 @@ namespace blocks {
     class MulSeq {
         int i = 0, j = 0, k = 0, m = 0;
     public:
-        MulSeq(int m) : m(m) {}
+        explicit MulSeq(int m) : m(m) {}
 
         void Set(std::vector<int>& v){
             v = {i, j, k};
             Update();
         }
 
-        bool HasElem(){
+        bool HasElem() const{
             return i != m;
         }
 
