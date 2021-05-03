@@ -3,11 +3,35 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-void StartApp(const char* name){
-    if (fork() == 0) {
+#include "help_functions.h"
+
+bool IsRunning(const char *proc){
+    bool running = false;
+    ForEachProc([&](char *name, int pid){
+        if (strcmp(proc, name) == 0){
+            running = true;
+            return true;
+        }
+        return false;
+    });
+    return running;
+}
+
+void Check(const char *name){
+    if (IsRunning(name)){
+        printf("proc %s is running\n", name);
+    } else {
+        printf("proc %s is NOT running\n", name);
+    }
+}
+
+int StartApp(const char* name){
+    int pid = fork();
+    if (pid == 0) {
         execlp(name, name, nullptr);
         exit(1);
     }
+    return pid;
 }
 
 bool Check(int id){
@@ -21,27 +45,41 @@ bool Check(int id){
 int main() {
     setenv("PROC_TO_KILL", "firefox,baobab", true);
 
-    // ubuntu default apps
-    StartApp("baobab");
-    StartApp("gedit");
+    int pid1 = StartApp("baobab");
+    int pid2 = StartApp("gedit");
+    int pid3 = StartApp("calc");
 
     sleep(2);
 
-    if (fork() == 0){
+    Check("gedit");
+    Check("baobab");
+    Check(pid3);
+    printf("\n");
+
+    int pid = fork();
+    if (pid == 0){
         execlp("./killer", "./killer", "--name", "gedit", nullptr);
     } else {
-        wait(nullptr);
+        waitpid(pid, nullptr, 0);
     }
 
-    int pid = 4349;
-    Check(pid);
-    if (fork() == 0){
-        execlp("./killer", "./killer", "--id", std::to_string(pid).c_str(), nullptr);
+    pid = fork();
+    if (pid == 0){
+        execlp("./killer", "./killer", "--id", std::to_string(pid3).c_str(), nullptr);
     } else {
-        wait(nullptr);
+        waitpid(pid, nullptr, 0);
     }
     sleep(1);
-    Check(pid);
+
+    waitpid(pid1, nullptr, 0);
+    waitpid(pid2, nullptr, 0);
+    waitpid(pid3, nullptr, 0);
+
+    Check("gedit");
+    Check("baobab");
+    Check(pid3);
+
+//    PrintProcs();
 
     unsetenv("PROC_TO_KILL");
 }
